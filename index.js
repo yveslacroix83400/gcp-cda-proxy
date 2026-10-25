@@ -3,7 +3,7 @@ export default {
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
     };
 
     if (request.method === "OPTIONS") {
@@ -11,26 +11,31 @@ export default {
     }
 
     if (request.method === "GET") {
-      return new Response(JSON.stringify({ status: "Proxy is live and ready!" }), {
+      return new Response(JSON.stringify({ status: "Groq proxy is live and ready!" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
     try {
-      const apiKey = env.ALBERT_API_KEY;
+      const apiKey = env.GROQ_API_KEY;
       if (!apiKey) {
-        throw new Error("Missing ALBERT_API_KEY in Cloudflare settings.");
+        throw new Error("Missing GROQ_API_KEY in Cloudflare settings.");
       }
 
       const body = await request.json();
 
-      const response = await fetch("https://albert.api.etalab.gouv.fr/v1/chat/completions", {
+      // Forward to Groq's ultra-fast Llama-3.1 endpoint
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${apiKey.trim()}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(body.payload)
+        body: JSON.stringify({
+          model: "llama-3.1-8b-instant",
+          messages: body.payload.messages,
+          temperature: 0.2
+        })
       });
 
       const responseData = await response.text();
